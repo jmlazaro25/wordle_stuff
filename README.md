@@ -1,6 +1,6 @@
 # wordle_stuff
 
-## wordle.py                                                                     
+## wordle.py
 `wordle.py` helps you beat wordle via parameterized rules (see `wordle.py` for full description of functionality).  
 For example if the I initally guess "BEAST" and the target word is "ADORN":
 "A" is in the wrong place as the third letter. "B," "E," "S," and "T" are not present. So we run:
