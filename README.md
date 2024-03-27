@@ -1,11 +1,11 @@
 # wordle_stuff
 
-## wordle.py
-`wordle.py` helps you beat wordle via parameterized rules (see `wordle.py` for full description of functionality).  
+## wordle_helper.py
+`wordle_helper.py` helps you beat wordle via parameterized rules (see `wordle_helper.py` for full description of functionality).  
 For example if the I initally guess "BEAST" and the target word is "ADORN":
 "A" is in the wrong place as the third letter. "B," "E," "S," and "T" are not present. So we run:
 ```
-python wordle.py --wrong_place a3 --not_present best
+python wordle_helper.py --wrong_place a3 --not_present best
 ```
 This outputs:  
 Guess: Score  
@@ -17,7 +17,7 @@ RADIO: 5.099
 
 If we guess "CAIRN," we have "A" in the wrong place again, add "C" and "I" to the list of letters not present, and "R" and "N" in the correct places. With short flags:
 ```
-python wordle.py -c r4 n5 -p a3 a2 -n bestci
+python wordle_helper.py -c r4 n5 -p a3 a2 -n bestci
 ```
 Guess: Score  
 ADORN: 5.096  
