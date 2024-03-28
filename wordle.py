@@ -43,7 +43,7 @@ class Wordle():
     lost = -1
     ongoing = 0
     won = 1
-    def __init__(self, words: tuple[str], target_len: int = None) -> None:
+    def __init__(self, words: set[str], target_len: int = None) -> None:
         """ Choose target and initialize state """
         if target_len:
             self.target_len = target_len
@@ -62,7 +62,7 @@ class Wordle():
         )
         self.state[:, self.target_len:, Wordle.hint_channel] = Wordle.not_used
 
-    def guess(self, word: str, possible_words: tuple[str] = None) -> ndarray:
+    def guess(self, word: str, possible_words: set[str] = None) -> ndarray:
         """ Add guess assesment to state (and return) """
         if len(word) != self.target_len:
             raise ValueError
@@ -128,10 +128,10 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.test_word:
-        all_words = [args.test_word.upper()]
+        all_words = set([args.test_word.upper()])
     else:
         with open(args.vocab_file) as f:
-            all_words = tuple(f.read().split('\n'))
+            all_words = set(f.read().split('\n'))
 
     game = Wordle(all_words, target_len=args.wlen)
     possible_words = all_words if args.restrict_guesses else None
