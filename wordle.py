@@ -43,7 +43,7 @@ class Wordle():
     lost = -1
     ongoing = 0
     won = 1
-    def __init__(self, words: list[str], target_len: int = None) -> None:
+    def __init__(self, words: tuple[str], target_len: int = None) -> None:
         """ Choose target and initialize state """
         if target_len:
             self.target_len = target_len
@@ -62,14 +62,16 @@ class Wordle():
         )
         self.state[:, self.target_len:, Wordle.hint_channel] = Wordle.not_used
 
-    def guess(self, word: str) -> ndarray:
-        """
-        Add guess assesment to state (and return)
-        """
+    def guess(self, word: str, possible_words: tuple[str] = None) -> ndarray:
+        """ Add guess assesment to state (and return) """
         if len(word) != self.target_len:
             raise ValueError
 
         word = word.upper()
+
+        if possible_words and word not in possible_words:
+            raise ValueError
+
         char_tuples = list(enumerate(word))
         char_counts = defaultdict(lambda: 0)
 
@@ -122,6 +124,7 @@ def main() -> None:
     parser.add_argument('-l', '--wlen', type=int, default=None)
     parser.add_argument('-w', '--test_word')
     parser.add_argument('--vocab_file', default='corncob_caps.txt')
+    parser.add_argument('-r', '--restrict_guesses', action='store_true')
     args = parser.parse_args()
 
     if args.test_word:
@@ -131,12 +134,13 @@ def main() -> None:
             all_words = tuple(f.read().split('\n'))
 
     game = Wordle(all_words, target_len=args.wlen)
+    possible_words = all_words if args.restrict_guesses else None
     while game.check_state() == 0:
         guess = input(
             f'Guess a {game.target_len}-letter word '
             + f'(attempt {game.attempts_made + 1}): '
         )
-        game.guess(guess)
+        game.guess(guess, possible_words=possible_words)
         print('Current state:')
         print(game.state[:game.attempts_made, :game.target_len])
 
