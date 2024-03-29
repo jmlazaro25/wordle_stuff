@@ -15,7 +15,7 @@ ALPH_IDS: dict[str, int] = {char: i + 1 for i, char in enumerate(ALPH)}
 
 class Wordle():
     """
-    State values: (attempt, character_space, char_hint_code)
+    State values: (char_hint_code, attempt, character_space)
         Character codes are given by ALPH_IDS
         Hint codes are follows:
             -2: Character space not used for short target word
@@ -23,7 +23,7 @@ class Wordle():
              0: Initial, "empty", state.
              1: Character used in target word, but in a different space.
              2: Character placed correctly.
-        E.g. self.state[0, 0, :]  = [1, 2] means the first guess had an "a" in
+        E.g. self.state[:, 0, 0]  = [1, 2] means the first guess had an "a" in
              as the first letter and it was correct
     State (summary) codes:
         -1 = Lost
@@ -36,9 +36,9 @@ class Wordle():
     hint_channel = 1
     n_channels = 2
     space_not_used = -2
-    not_used = -1
+    char_not_used = -1
     inital_empty = 0
-    elsewhere = 1
+    char_elsewhere = 1
     correct = 2
     lost = -1
     ongoing = 0
@@ -58,9 +58,13 @@ class Wordle():
 
         self.attempts_made = 0
         self.state = zeros(
-            (Wordle.max_attempts, Wordle.max_chars, Wordle.n_channels)
+            (Wordle.n_channels, Wordle.max_attempts, Wordle.max_chars)
         )
-        self.state[:, self.target_len:, Wordle.hint_channel] = Wordle.not_used
+        self.state[
+            Wordle.hint_channel,
+            :,
+            self.target_len:
+        ] = Wordle.space_not_used
 
     def guess(self, word: str, possible_words: set[str] = None) -> ndarray:
         """ Add guess assesment to state (and return) """
@@ -83,32 +87,35 @@ class Wordle():
         for char_space in range(self.target_len):
             char = word[char_space]
             space_tuple = (self.attempts_made, char_space)
-            self.state[*space_tuple, Wordle.char_channel] = ALPH_IDS[char]
+            self.state[Wordle.char_channel, *space_tuple] = ALPH_IDS[char]
             if char == self.target[char_space]:
                 char_counts[char] += 1
-                self.state[*space_tuple, Wordle.hint_channel] = Wordle.correct
+                self.state[Wordle.hint_channel, *space_tuple] = Wordle.correct
                 char_tuples.pop(char_space - offset)
                 offset += 1
 
         for char_space, char in char_tuples:
-            space_tuple = (self.attempts_made, char_space, Wordle.hint_channel)
+            space_tuple = (Wordle.hint_channel, self.attempts_made, char_space)
             char_counts[char] += 1
 
             if (
                 char in self.target
                 and char_counts[char] <= self.target_counts[char]
             ):
-                self.state[*space_tuple] = Wordle.elsewhere
+                self.state[*space_tuple] = Wordle.char_elsewhere
             else:
-                self.state[*space_tuple] = Wordle.not_used
+                self.state[*space_tuple] = Wordle.char_not_used
 
         self.attempts_made += 1
         return self.state
 
     def check_state(self) -> int:
         recent_attempt_success = all(
-            self.state[self.attempts_made - 1, hint, 1] == 2
-            for hint in range(self.target_len)
+            self.state[
+                Wordle.hint_channel,
+                self.attempts_made - 1,
+                :self.target_len
+            ] == 2
         )
         if recent_attempt_success:
             return Wordle.won
@@ -142,7 +149,7 @@ def main() -> None:
         )
         game.guess(guess, possible_words=possible_words)
         print('Current state:')
-        print(game.state[:game.attempts_made, :game.target_len])
+        print(game.state[:, :game.attempts_made, :game.target_len])
 
     if game.check_state() == 1:
         print('You Won!')
