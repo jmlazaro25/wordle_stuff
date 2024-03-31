@@ -31,11 +31,12 @@ class Wordle():
          0 = Ongoing
          1 = Won
     """
-    max_attempts = 6
-    max_chars = 15
     char_channel = 0
     hint_channel = 1
     n_channels = 2
+    max_attempts = 6
+    max_chars = 15
+    state_size = n_channels * max_attempts * max_chars
     space_not_used = -2
     char_not_used = -1
     inital_empty = 0
@@ -134,6 +135,14 @@ class Wordle():
             return Wordle.lost
 
 
+def load_vocab(
+        vocab_file: str ='corncob_caps.txt',
+        data_struct: type = tuple
+    ) -> Union[tuple[str], set[str]]:
+    with open(vocab_file) as f:
+        return data_struct(f.read().upper().split('\n'))
+
+
 def main() -> None:
     """ Play Wordle on command line - FOR TESTING - NOT USER FRIENDLY """
     parser = ArgumentParser()
@@ -143,13 +152,16 @@ def main() -> None:
     parser.add_argument('-r', '--restrict_guesses', action='store_true')
     args = parser.parse_args()
 
-    all_words_datastruct = set if args.restrict_guesses else tuple
+    all_words_data_struct = set if args.restrict_guesses else tuple
 
     if args.test_word:
-        all_words = all_words_datastruct([args.test_word.upper()])
+        all_words = all_words_data_struct([args.test_word.upper()])
     else:
         with open(args.vocab_file) as f:
-            all_words = all_words_datastruct(f.read().split('\n'))
+            all_words = load_vocab(
+                args.vocab_file,
+                data_struct=all_words_data_struct
+            )
 
     possible_words = all_words if args.restrict_guesses else None
 
