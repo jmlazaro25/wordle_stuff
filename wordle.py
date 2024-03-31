@@ -1,6 +1,7 @@
 from random import choice
 from collections import Counter
 from collections import defaultdict
+from typing import Union
 
 from numpy import ndarray
 from numpy import zeros
@@ -43,7 +44,11 @@ class Wordle():
     lost = -1
     ongoing = 0
     won = 1
-    def __init__(self, words: set[str], target_len: int = None) -> None:
+    def __init__(
+            self,
+            words: Union[tuple[str], set[str]],
+            target_len: int = None
+        ) -> None:
         """ Choose target and initialize state """
         if target_len:
             self.target_len = target_len
@@ -66,7 +71,11 @@ class Wordle():
             self.target_len:
         ] = Wordle.space_not_used
 
-    def guess(self, word: str, possible_words: set[str] = None) -> ndarray:
+    def guess(
+            self,
+            word: str,
+            possible_words: Union[tuple[str], set[str]] = None
+        ) -> ndarray:
         """ Add guess assesment to state (and return) """
         if len(word) != self.target_len:
             raise ValueError
@@ -134,14 +143,17 @@ def main() -> None:
     parser.add_argument('-r', '--restrict_guesses', action='store_true')
     args = parser.parse_args()
 
+    all_words_datastruct = set if args.restrict_guesses else tuple
+
     if args.test_word:
-        all_words = set([args.test_word.upper()])
+        all_words = all_words_datastruct([args.test_word.upper()])
     else:
         with open(args.vocab_file) as f:
-            all_words = set(f.read().split('\n'))
+            all_words = all_words_datastruct(f.read().split('\n'))
+
+    possible_words = all_words if args.restrict_guesses else None
 
     game = Wordle(all_words, target_len=args.wlen)
-    possible_words = all_words if args.restrict_guesses else None
     while game.check_state() == 0:
         guess = input(
             f'Guess a {game.target_len}-letter word '
