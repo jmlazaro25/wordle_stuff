@@ -73,6 +73,7 @@ def filter_by_wrong_place(
         for char, pos in wrong_place:
             if word[pos] == char:
                 words_copy.remove(word)
+                break
     return tuple(words_copy)
 
 def get_present_counts(
@@ -147,6 +148,7 @@ def remove_maxed(
         for char, cnt in maxed_chars.items():
             if len(re.findall(char.upper(), word)) > cnt:
                 words_copy.remove(word)
+                break
     return tuple(words_copy)
 
 def sort_words(
