@@ -42,7 +42,7 @@ def filter_by_wlen(words: words_tuple, wlen: int) -> words_tuple:
     return tuple(w for w in words if len(w) == wlen)
 
 def parse_char_pos(char_pos_strs: input_strs) -> char_posses:
-    return tuple((s[0].upper(), int(s[1]) - 1) for s in char_pos_strs)
+    return tuple((s[0].upper(), int(s[1:]) - 1) for s in char_pos_strs)
 
 def filter_by_correct(words: words_tuple, correct: input_strs) -> words_tuple:
     """ Keep only words with correct chars in correct positions. """
