@@ -35,12 +35,9 @@ class Wordle():
     hint_channel = 1
     n_channels = 2
     max_attempts = 6
-    max_chars = 15
-    state_size = n_channels * max_attempts * max_chars
-    space_not_used = -2
-    char_not_used = -1
+    not_used = -1
     inital_empty = 0
-    char_elsewhere = 1
+    wrong_place = 1
     correct = 2
     lost = -1
     ongoing = 0
@@ -56,21 +53,15 @@ class Wordle():
             words = tuple(w for w in words if len(w) == target_len)
             self.target = choice(words)
         else:
-            words = tuple(w for w in words if len(w) <= Wordle.max_chars)
-            self.target = choice(words)
+            self.target = choice(tuple(words))
             self.target_len = len(self.target)
 
         self.target_counts = Counter(self.target)
 
         self.attempts_made = 0
         self.state = zeros(
-            (Wordle.n_channels, Wordle.max_attempts, Wordle.max_chars)
+            (Wordle.n_channels, Wordle.max_attempts, self.target_len)
         )
-        self.state[
-            Wordle.hint_channel,
-            :,
-            self.target_len:
-        ] = Wordle.space_not_used
 
     def guess(
             self,
@@ -112,9 +103,9 @@ class Wordle():
                 char in self.target
                 and char_counts[char] <= self.target_counts[char]
             ):
-                self.state[*space_tuple] = Wordle.char_elsewhere
+                self.state[*space_tuple] = Wordle.wrong_place
             else:
-                self.state[*space_tuple] = Wordle.char_not_used
+                self.state[*space_tuple] = Wordle.not_used
 
         self.attempts_made += 1
         return self.state
