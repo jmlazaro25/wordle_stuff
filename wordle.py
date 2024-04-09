@@ -3,8 +3,10 @@ from collections import Counter
 from collections import defaultdict
 from typing import Union
 
-from numpy import ndarray
 from numpy import zeros
+from numpy import ndarray
+from numpy import int64
+from numpy import float64
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
@@ -12,6 +14,7 @@ if __name__ == '__main__':
 
 ALPH: str = 'ABCDEFGHJIKLMNOPQRSTUVWXYZ'
 ALPH_IDS: dict[str, int] = {char: i + 1 for i, char in enumerate(ALPH)}
+ALPH_LEN: int = len(ALPH)
 
 
 class Wordle():
@@ -19,12 +22,11 @@ class Wordle():
     State values: (char_hint_code, attempt, character_space)
         Character codes are given by ALPH_IDS
         Hint codes are follows:
-            -2: Character space not used for short target word
-            -1: Character not in target word.
-             0: Initial, "empty", state.
-             1: Character used in target word, but in a different space.
-             2: Character placed correctly.
-        E.g. self.state[:, 0, 0]  = [1, 2] means the first guess had an "a" in
+            0: Initial, "empty", state.
+            1: Character not in target word.
+            2: Character used in target word, but in a different space.
+            3: Character placed correctly.
+        E.g. self.state[:, 0, 0]  = [1, 3] means the first guess had an "a" in
              as the first letter and it was correct
     State (summary) codes:
         -1 = Lost
@@ -35,10 +37,11 @@ class Wordle():
     hint_channel = 1
     n_channels = 2
     max_attempts = 6
-    not_used = -1
     inital_empty = 0
-    wrong_place = 1
-    correct = 2
+    not_used = 1
+    wrong_place = 2
+    correct = 3
+    n_hint_states = 4
     lost = -1
     ongoing = 0
     won = 1
@@ -60,14 +63,15 @@ class Wordle():
 
         self.attempts_made = 0
         self.state = zeros(
-            (Wordle.n_channels, Wordle.max_attempts, self.target_len)
+            (Wordle.n_channels, Wordle.max_attempts, self.target_len),
+            dtype=int
         )
 
     def guess(
             self,
             word: str,
             possible_words: Union[tuple[str], set[str]] = None
-        ) -> ndarray:
+        ) -> ndarray[int64]:
         """ Add guess assesment to state (and return) """
         if len(word) != self.target_len:
             raise ValueError
@@ -82,7 +86,7 @@ class Wordle():
 
         # Count correct chars first
         # Prevents characters being marked as misplaced if the character is used
-        # twice in the guess, only once in the target and the later use is
+        # twice in the guess, only used once in the target, and the later use is
         # correct.
         offset = 0
         for char_space in range(self.target_len):
@@ -110,13 +114,41 @@ class Wordle():
         self.attempts_made += 1
         return self.state
 
+    def one_hot_guess(
+            self,
+            word: str,
+            possible_words: Union[tuple[str], set[str]] = None
+        ) -> tuple[ndarray[float64]]:
+        return Wordle.one_hot_state(
+            self.guess(word, possible_words),
+            self.target_len,
+            self.attempts_made
+        )
+
+    @staticmethod
+    def one_hot_state(
+            state: ndarray[int64],
+            target_len: int,
+            attempts_made: int
+        ) -> tuple[ndarray[float64]]:
+        one_hot_chars = zeros((ALPH_LEN + 1, Wordle.max_attempts, target_len))
+        one_hot_hints = zeros(
+            (Wordle.n_hint_states, Wordle.max_attempts, target_len)
+        )
+        for attempt_i in range(attempts_made):
+            for pos_i in range(target_len):
+                space_tuple = (attempt_i, pos_i)
+                char, hint = state[:, *space_tuple]
+                one_hot_chars[char, *space_tuple] = 1.
+                one_hot_hints[hint, *space_tuple] = 1.
+        return (one_hot_chars, one_hot_hints)
+
     def check_state(self) -> int:
         recent_attempt_success = all(
             self.state[
                 Wordle.hint_channel,
-                self.attempts_made - 1,
-                :self.target_len
-            ] == 2
+                self.attempts_made - 1
+            ] == Wordle.correct
         )
         if recent_attempt_success:
             return Wordle.won
@@ -141,6 +173,7 @@ def main() -> None:
     parser.add_argument('-w', '--test_word')
     parser.add_argument('--vocab_file', default='corncob_caps.txt')
     parser.add_argument('-r', '--restrict_guesses', action='store_true')
+    parser.add_argument('-o', '--one_hot', action='store_true')
     args = parser.parse_args()
 
     all_words_data_struct = set if args.restrict_guesses else tuple
@@ -157,16 +190,24 @@ def main() -> None:
     possible_words = all_words if args.restrict_guesses else None
 
     game = Wordle(all_words, target_len=args.wlen)
-    while game.check_state() == 0:
+    while game.check_state() == Wordle.ongoing:
         guess = input(
             f'Guess a {game.target_len}-letter word '
             + f'(attempt {game.attempts_made + 1}): '
         )
-        game.guess(guess, possible_words=possible_words)
-        print('Current state:')
-        print(game.state[:, :game.attempts_made, :game.target_len])
 
-    if game.check_state() == 1:
+        print('Current state:')
+        if not args.one_hot:
+            game.guess(guess, possible_words)
+            print(game.state[:, :game.attempts_made])
+        else:
+            chars, hints = game.one_hot_guess(guess, possible_words)
+            print('Characters:')
+            print(chars[:, :game.attempts_made])
+            print('Hints:')
+            print(hints[:, :game.attempts_made])
+
+    if game.check_state() == Wordle.won:
         print('You Won!')
     else:
         print(f'You lost :( The target word was {game.target}.')
