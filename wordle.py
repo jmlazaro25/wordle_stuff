@@ -6,7 +6,6 @@ from typing import Union
 from numpy import zeros
 from numpy import ndarray
 from numpy import int64
-from numpy import float64
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
@@ -37,7 +36,7 @@ class Wordle():
     hint_channel = 1
     n_channels = 2
     max_attempts = 6
-    inital_empty = 0
+    initial_empty = 0
     not_used = 1
     wrong_place = 2
     correct = 3
@@ -74,12 +73,12 @@ class Wordle():
         ) -> ndarray[int64]:
         """ Add guess assesment to state (and return) """
         if len(word) != self.target_len:
-            raise ValueError
+            raise ValueError('Your guess had the wrong number of characters')
 
         word = word.upper()
 
         if possible_words and word not in possible_words:
-            raise ValueError
+            raise ValueError('You guess is not in this Wordle\'s vocabulary')
 
         char_tuples = list(enumerate(word))
         char_counts = defaultdict(lambda: 0)
@@ -113,35 +112,6 @@ class Wordle():
 
         self.attempts_made += 1
         return self.state
-
-    def one_hot_guess(
-            self,
-            word: str,
-            possible_words: Union[tuple[str], set[str]] = None
-        ) -> tuple[ndarray[float64]]:
-        return Wordle.one_hot_state(
-            self.guess(word, possible_words),
-            self.target_len,
-            self.attempts_made
-        )
-
-    @staticmethod
-    def one_hot_state(
-            state: ndarray[int64],
-            target_len: int,
-            attempts_made: int
-        ) -> tuple[ndarray[float64]]:
-        one_hot_chars = zeros((ALPH_LEN + 1, Wordle.max_attempts, target_len))
-        one_hot_hints = zeros(
-            (Wordle.n_hint_states, Wordle.max_attempts, target_len)
-        )
-        for attempt_i in range(attempts_made):
-            for pos_i in range(target_len):
-                space_tuple = (attempt_i, pos_i)
-                char, hint = state[:, *space_tuple]
-                one_hot_chars[char, *space_tuple] = 1.
-                one_hot_hints[hint, *space_tuple] = 1.
-        return (one_hot_chars, one_hot_hints)
 
     def check_state(self) -> int:
         recent_attempt_success = all(
