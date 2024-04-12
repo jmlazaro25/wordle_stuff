@@ -9,6 +9,7 @@ from itertools import pairwise
 from random import sample
 from random import randint
 from random import random as randfloat
+from inspect import getfullargspec
 
 import torch
 import torch.nn as nn
@@ -125,9 +126,10 @@ class DQN(nn.Module):
         self.vocab = vocab
         self.n_actions = len(self.vocab)
         if self.n_actions != fc_configs[-1].f_out:
-            raise ValueError(f'''
-                fc_configs[-1].f_out ({fc_configs[-1].f_out}) should equal n_actions ({n_actions})
-            ''')
+            raise ValueError(
+                f'fc_configs[-1].f_out ({fc_configs[-1].f_out})'
+                f' should equal n_actions ({n_actions})'
+            )
 
         self.conv_pool_configs = conv_pool_configs
         self.fc_configs = fc_configs
@@ -276,6 +278,7 @@ class DQN(nn.Module):
 class DQNTrainer():
     def __init__(
         self,
+        reward_func: Callable,
         optimizer,
         checkpointer: Checkpointer = None,
         stopper: EarlyStopper = None,
@@ -290,6 +293,7 @@ class DQNTrainer():
         update_rate: float = 1e-4,
         plot_freq: int = 50,
     ) -> None:
+        self.reward_func = reward_func
         self.optimizer = optimizer
         self.checkpointer = checkpointer
         self.stopper = stopper
@@ -308,6 +312,16 @@ class DQNTrainer():
         self.batch_n = 0
 
         self.target_net = None # set in DQN.train w/ DQNTrainer.set_target_net
+
+        if len(getfullargspec(self.reward_func).args) != 4:
+            raise ValueError(
+                'reward_func should take 4 arguments'
+                ' (May be named differently and do not need to be used):\n'
+                '1. state: The state from a Wordle instance\n'
+                '2. status: The output of wordle_instance.check_state()\n'
+                '3. guess_n: The number of guesses taken thus far\n'
+                '4. target_len: The length of word for which the DQN is made\n'
+            )
 
     def set_target_net(self, target_net: DQN) -> None:
         self.target_net = target_net
@@ -333,17 +347,6 @@ class DQNTrainer():
                 device=self.device,
                 dtype=torch.long
             )
-
-    @staticmethod
-    def get_reward(target_len, state, status, guess_n) -> float:
-        turn_value = 10.
-        reward = -turn_value
-        reward += sum(
-            1./target_len for hint in state[Wordle.hint_channel, guess_n - 1]
-            if hint == Wordle.correct
-        )
-        reward += Wordle.max_attempts * turn_value * int(status == Wordle.won)
-        return reward / target_len
 
     def optimize_model(self, policy_net) -> Union[None, float]:
         """ Return Huber loss """
@@ -426,11 +429,11 @@ class DQNTrainer():
                 action = self.select_action(policy_net, state)
                 next_state = wordle.guess(policy_net.vocab[action])
                 status = wordle.check_state()
-                reward = DQNTrainer.get_reward(
-                    policy_net.target_len,
+                reward = self.reward_func(
                     next_state,
                     status,
-                    wordle.attempts_made
+                    wordle.attempts_made,
+                    policy_net.target_len
                 )
                 episode_reward += reward
                 next_state = torch.tensor(
